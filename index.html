@@ -82,6 +82,7 @@
             border-radius: 4px;
             margin-top: 5px;
             box-sizing: border-box;
+            font-size: 0.7rem;
         }
 
         .control-panel {
@@ -213,9 +214,9 @@
     <span class="tool-label">Mobile Sync (Live Feed)</span>
     <div class="mobile-link-box">
         <div style="font-size: 0.6rem; color: #888;">YOUR PC ID:</div>
-        <div id="my-peer-id" style="color: var(--accent); font-weight: bold; font-size: 0.8rem;">Connecting...</div>
+        <div id="my-peer-id" style="color: var(--accent); font-weight: bold; font-size: 0.7rem; word-break: break-all;">Connecting...</div>
         <div id="qrcode"></div>
-        <input type="text" id="remote-id" class="peer-input" placeholder="Enter PC ID on Mobile">
+        <input type="text" id="remote-id" class="peer-input" placeholder="Paste PC ID here on Phone">
         <button onclick="connectToPC()" style="margin-top: 8px; font-size: 0.7rem; width: 100%; justify-content: center;">🔗 VIEW LIVE FEED</button>
     </div>
     
@@ -281,7 +282,6 @@
 
 <script>
     let mediaRecorder;
-    let wakeLock = null;
     let videoElem = document.getElementById('v-feed');
     let motionCanvas = document.getElementById('motionCanvas');
     let motionCtx = motionCanvas.getContext('2d', { willReadFrequently: true });
@@ -293,46 +293,70 @@
     let localStream;
 
     // --- PeerJS Setup for Mobile Sync ---
-    peer = new Peer(); 
+    // Using default PeerJS Cloud Server
+    peer = new Peer({
+        debug: 3
+    }); 
+
     peer.on('open', (id) => {
         document.getElementById('my-peer-id').innerText = id;
         generateQR(id);
+        logAI("Connected to Sync Server. ID: " + id);
     });
 
     peer.on('call', (call) => {
-        logAI("Mobile connected to live feed.");
-        call.answer(localStream);
-        call.on('stream', (remoteStream) => {
-            // Optional: Show mobile cam back if needed
-        });
+        logAI("Mobile connecting...");
+        // Answer the call with the local camera stream
+        if(localStream) {
+            call.answer(localStream);
+            logAI("Streaming to mobile started.");
+        } else {
+            logAI("Error: Start PC camera first!");
+        }
+    });
+
+    peer.on('error', (err) => {
+        logAI("Sync Error: " + err.type);
+        console.error(err);
     });
 
     function connectToPC() {
-        const remoteId = document.getElementById('remote-id').value;
-        if (!remoteId) return alert("Enter PC ID!");
-        const call = peer.call(remoteId, localStream);
+        const remoteId = document.getElementById('remote-id').value.trim();
+        if (!remoteId) return alert("Please enter the ID shown on your PC screen!");
+        
+        logAI("Attempting to link with: " + remoteId);
+        
+        // Mobile calls PC. We don't need to send mobile stream, just receive.
+        const call = peer.call(remoteId, new MediaStream()); 
+        
         call.on('stream', (remoteStream) => {
             videoElem.srcObject = remoteStream;
-            logAI("Connected to Remote Feed.");
+            logAI("LIVE FEED CONNECTED!");
+            document.getElementById('sysStatus').innerText = "REMOTE VIEWING";
+        });
+
+        call.on('error', (err) => {
+            logAI("Connection failed: " + err);
         });
     }
 
     function generateQR(id) {
-        new QRCode(document.getElementById("qrcode"), {
+        const qrDiv = document.getElementById("qrcode");
+        qrDiv.innerHTML = ""; // Clear
+        new QRCode(qrDiv, {
             text: window.location.href,
             width: 100,
             height: 100
         });
     }
 
+    // --- AI & System Functions ---
     async function loadAI() {
         try {
             const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
             await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
             await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-            await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-            await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
-            logAI("AI Models Loaded");
+            logAI("AI Analytics Ready.");
         } catch (e) { logAI("AI Error: " + e.message); }
     }
     loadAI();
@@ -362,13 +386,15 @@
         const now = new Date();
         document.getElementById('liveTime').innerText = now.toLocaleTimeString('en-GB');
         document.getElementById('liveDate').innerText = now.toDateString();
-        checkMotion();
-        if (videoElem.srcObject) runAIDetection();
+        if (videoElem.srcObject) {
+            checkMotion();
+            runAIDetection();
+        }
     }, 1000);
 
     async function runAIDetection() {
         overlay.width = videoElem.videoWidth; overlay.height = videoElem.videoHeight;
-        const detections = await faceapi.detectAllFaces(videoElem, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+        const detections = await faceapi.detectAllFaces(videoElem, new faceapi.TinyFaceDetectorOptions());
         if (detections.length > 0) {
             document.getElementById('aiStatus').innerText = `${detections.length} FACE(S)`;
             overlayCtx.clearRect(0,0, overlay.width, overlay.height);
@@ -380,7 +406,6 @@
     }
 
     function checkMotion() {
-        if (!videoElem.srcObject) return;
         motionCanvas.width = 64; motionCanvas.height = 48;
         motionCtx.drawImage(videoElem, 0, 0, 64, 48);
         const currentFrame = motionCtx.getImageData(0, 0, 64, 48).data;
@@ -403,8 +428,8 @@
             document.getElementById('recLabel').style.display = "block";
             document.getElementById('sysStatus').innerText = "MONITORING";
             initRecorder(localStream);
-            if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
-        } catch (e) { alert("Enable Camera Access"); }
+            logAI("Camera Started.");
+        } catch (e) { alert("Enable Camera Access!"); }
     }
 
     function initRecorder(stream) {
