@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CCTV LOKA | VVIP REMOTE</title>
+    <title>CCTV LOKA | VVIP REMOTE PRO</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
@@ -13,11 +13,11 @@
         .logo { font-size: 1.2rem; font-weight: 900; color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; }
         .sync-box { background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px dashed var(--accent); margin-bottom: 20px; text-align: center; }
         #qrcode { display: flex; justify-content: center; margin: 10px 0; background: white; padding: 5px; border-radius: 4px; }
-        input { width: 100%; padding: 10px; background: #000; border: 1px solid #444; color: var(--accent); border-radius: 5px; margin-bottom: 10px; box-sizing: border-box; }
+        input { width: 100%; padding: 12px; background: #000; border: 1px solid #444; color: var(--accent); border-radius: 5px; margin-bottom: 10px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid #444; color: white; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 10px; }
         button:hover { background: var(--accent); color: black; }
         .monitor-view { flex: 1; padding: 20px; display: flex; justify-content: center; align-items: center; background: #000; }
-        video { width: 100%; height: 100%; object-fit: contain; border-radius: 10px; box-shadow: 0 0 20px rgba(57, 255, 20, 0.2); }
+        video { width: 100%; height: 100%; object-fit: contain; border-radius: 10px; }
         #log { font-size: 0.7rem; color: #888; margin-top: 10px; height: 80px; overflow-y: auto; background: #000; padding: 5px; border: 1px solid #333; }
     </style>
 </head>
@@ -27,7 +27,7 @@
     <div class="logo">CCTV LOKA VVIP</div>
     
     <div class="sync-box">
-        <div style="font-size: 0.7rem; color: #888;">YOUR DEVICE ID:</div>
+        <div style="font-size: 0.7rem; color: #888;">YOUR DEVICE ID (PC):</div>
         <div id="my-id" style="font-weight: bold; color: var(--accent); font-size: 0.8rem; word-break: break-all;">Connecting...</div>
         <div id="qrcode"></div>
     </div>
@@ -43,7 +43,7 @@
     <div id="log">System Ready...</div>
 </div>
 
-<div class="monitor-view" id="main-view">
+<div class="monitor-view">
     <video id="v-feed" autoplay playsinline muted></video>
 </div>
 
@@ -58,9 +58,8 @@
         log("Server Online. ID Generated.");
     });
 
-    // When PC receives a call from Mobile
     peer.on('call', (call) => {
-        log("Incoming connection from Mobile...");
+        log("Incoming connection...");
         if (localStream) {
             call.answer(localStream);
         } else {
@@ -74,7 +73,7 @@
             videoElem.srcObject = localStream;
             log("PC Camera Active. Ready to sync.");
         } catch (e) {
-            alert("Please use HTTPS or allow camera access!");
+            alert("Please use HTTPS and allow camera access!");
         }
     }
 
@@ -83,12 +82,10 @@
         l.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}<br>` + l.innerHTML;
     }
 
-    // Function to handle opening in new tab
     function openLiveTab() {
         const id = document.getElementById('remote-id').value.trim();
         if(!id) return alert("Please enter the PC ID first!");
 
-        // Open a new blank window
         const newTab = window.open("", "_blank");
         newTab.document.write(`
             <html>
@@ -96,26 +93,42 @@
                 <title>LIVE CCTV FEED</title>
                 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"><\/script>
                 <style>
-                    body { margin: 0; background: black; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-                    video { width: 100%; height: 100%; object-fit: contain; }
-                    #status { position: absolute; top: 10px; left: 10px; color: #39ff14; font-family: sans-serif; font-size: 12px; background: rgba(0,0,0,0.5); padding: 5px; }
+                    body { margin: 0; background: black; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: #39ff14; font-family: sans-serif; }
+                    video { width: 100%; height: 100%; object-fit: contain; display: none; }
+                    #btn { padding: 20px; background: #39ff14; color: black; border: none; font-weight: bold; border-radius: 10px; cursor: pointer; font-size: 1.2rem; }
+                    #status { position: absolute; top: 10px; width: 100%; text-align: center; }
                 </style>
             </head>
             <body>
-                <div id="status">Connecting to PC...</div>
+                <div id="status">Ready to Connect to PC...</div>
+                <button id="btn" onclick="startCall()">CLICK TO VIEW LIVE FEED</button>
                 <video id="remoteVideo" autoplay playsinline></video>
+
                 <script>
                     const peer = new Peer();
-                    peer.on('open', () => {
-                        const call = peer.call("${id}", new MediaStream());
+                    function startCall() {
+                        document.getElementById('btn').style.display = 'none';
+                        document.getElementById('status').innerText = 'Connecting to PC ID: ${id}...';
+                        
+                        // Critical: We need a dummy audio track to trigger the stream correctly on mobile
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 10; canvas.height = 10;
+                        const dummyStream = canvas.captureStream(1);
+
+                        const call = peer.call("${id}", dummyStream);
+                        
                         call.on('stream', (stream) => {
-                            document.getElementById('remoteVideo').srcObject = stream;
-                            document.getElementById('status').innerText = "LIVE FEED ACTIVE";
+                            const v = document.getElementById('remoteVideo');
+                            v.style.display = 'block';
+                            v.srcObject = stream;
+                            document.getElementById('status').innerText = 'LIVE FEED ACTIVE';
+                            v.play();
                         });
+
                         call.on('error', (err) => {
-                            document.getElementById('status').innerText = "Error: " + err;
+                            document.getElementById('status').innerText = 'Connection Error: ' + err;
                         });
-                    });
+                    }
                 <\/script>
             </body>
             </html>
