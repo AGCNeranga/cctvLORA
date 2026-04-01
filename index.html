@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=edge-width, initial-scale=1.0">
     <title>CCTV LOKA | REMOTE PRO AI</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
@@ -329,15 +329,7 @@
 </div>
 
 <script>
-    // INTERNATIONAL CONFIG: Added Global STUN servers for cross-country communication
-    let peer = new Peer({
-        config: {'iceServers': [
-            { url: 'stun:stun.l.google.com:19302' },
-            { url: 'stun:stun1.l.google.com:19302' },
-            { url: 'stun:stun2.l.google.com:19302' }
-        ]}
-    });
-
+    let peer = new Peer();
     let localStream, mediaRecorder, lastFrameData;
     const videoElem = document.getElementById('v-feed');
     const overlay = document.getElementById('canvasOverlay');
@@ -348,7 +340,7 @@
     peer.on('open', (id) => {
         document.getElementById('my-id').innerText = id;
         new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 100, height: 100 });
-        log("Server Online. Long-distance sync ready.");
+        log("Server Online. Sync Ready.");
     });
 
     function copyMyId() {
@@ -364,35 +356,13 @@
         }, 2000);
     }
 
-    // MAIN HUB: CONNECTION LISTENER
-    peer.on('connection', (conn) => {
-        conn.on('data', (data) => {
-            if (data === 'REMOTE_NIGHT_TOGGLE') {
-                toggleNight();
-                log("Remote Command: Night Vision Toggled.");
-            }
-            if (data === 'REMOTE_SNAPSHOT') {
-                takeSnapshot();
-                log("Remote Command: Snapshot Taken.");
-            }
-        });
-    });
-
     peer.on('call', (call) => {
-        log("Incoming International Handshake...");
+        log("Incoming Handshake...");
         if (localStream) {
             call.answer(localStream);
-            log("Feed Shared successfully.");
-            
-            // Listen for Remote Intercom Audio
-            call.on('stream', (remoteStream) => {
-                const audio = new Audio();
-                audio.srcObject = remoteStream;
-                audio.play();
-                log("Intercom Audio Receiving...");
-            });
+            log("Feed Shared with Remote Device.");
         } else {
-            log("Call rejected. Please START camera first.");
+            log("Remote connection rejected. Start PC Camera!");
         }
     });
 
@@ -401,7 +371,7 @@
             const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
             await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
             log("AI Facial Models Loaded.");
-        } catch (e) { log("AI Models failed to load."); }
+        } catch (e) { log("AI Load Error."); }
     }
     loadAI();
 
@@ -412,9 +382,9 @@
             document.getElementById('sysStatus').innerText = "LIVE";
             document.getElementById('recLabel').style.display = "block";
             initRecorder(localStream);
-            log("Local Monitor Active.");
+            log("PC Monitor Active.");
         } catch (e) {
-            alert("Error: Camera access is blocked.");
+            alert("Error: Enable camera access and use HTTPS.");
         }
     }
 
@@ -442,12 +412,17 @@
         };
         
         const interval = parseInt(document.getElementById('loopDuration').value);
+        
+        // Start the recorder
         mediaRecorder.start(); 
+        
+        // Use setInterval to stop and restart based on loop duration
+        // This ensures the browser "commits" the video data to a file at each interval
         setInterval(() => {
             if (mediaRecorder.state === "recording") {
                 mediaRecorder.stop();
                 mediaRecorder.start();
-                log("New 30-minute clip sequence started.");
+                log("Starting new sequence loop...");
             }
         }, interval);
     }
@@ -477,6 +452,7 @@
     function stopSystem() {
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
             mediaRecorder.stop(); 
+            log("Finalizing recording...");
         }
         if (localStream) {
             localStream.getTracks().forEach(t => t.stop());
@@ -505,62 +481,31 @@
                 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"><\/script>
                 <style>
                     body { margin: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: #39ff14; font-family: 'Courier New', monospace; overflow: hidden; }
-                    .grid-container { width: 100%; height: 100%; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; }
-                    video { width: 100%; height: 100%; object-fit: contain; background: #111; }
-                    .ui-layer { position: absolute; bottom: 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; z-index: 100; width: 100%; padding: 0 10px; }
-                    #btn, .ctrl-btn { padding: 12px 20px; background: #39ff14; color: black; border: none; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 0.9rem; box-shadow: 0 0 15px rgba(57, 255, 20, 0.3); }
-                    #status { position: absolute; top: 20px; width: 100%; text-align: center; letter-spacing: 2px; z-index: 100; font-size: 0.8rem; text-shadow: 2px 2px #000; }
+                    video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+                    #btn { padding: 20px 40px; background: #39ff14; color: black; border: none; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 1.2rem; box-shadow: 0 0 20px rgba(57, 255, 20, 0.4); z-index: 100; position: absolute; }
+                    #status { position: absolute; top: 20px; width: 100%; text-align: center; letter-spacing: 2px; z-index: 100; font-size: 0.8rem; }
                     .loading { animation: blink 1s infinite; }
                     @keyframes blink { 50% { opacity: 0; } }
                 </style>
             </head>
             <body>
-                <div id="status">CONNECTING TO GLOBAL SERVER...</div>
+                <div id="status">INITIALIZING SECURE LINK...</div>
                 <button id="btn" onclick="startCall()">ESTABLISH LIVE CONNECTION</button>
-                
-                <div class="grid-container" id="videoGrid">
-                    <video id="remoteVideo" autoplay playsinline muted></video>
-                </div>
-
-                <div class="ui-layer">
-                    <button class="ctrl-btn" id="micBtn" onclick="toggleMic()" style="display:none;">🎤 INTERCOM: OFF</button>
-                    <button class="ctrl-btn" id="dataBtn" onclick="toggleBandwidth()" style="display:none;">📶 MODE: HIGH-DEF</button>
-                    <button class="ctrl-btn" id="remoteNight" onclick="sendRemoteCmd('REMOTE_NIGHT_TOGGLE')" style="display:none;">🌙 NIGHT VISION</button>
-                    <button class="ctrl-btn" id="remoteSnap" onclick="sendRemoteCmd('REMOTE_SNAPSHOT')" style="display:none;">📸 TRIGGER SNAP</button>
-                </div>
-
+                <video id="remoteVideo" autoplay playsinline muted></video>
                 <script>
-                    const peer = new Peer({
-                        config: {'iceServers': [
-                            { url: 'stun:stun.l.google.com:19302' },
-                            { url: 'stun:stun1.l.google.com:19302' },
-                            { url: 'stun:stun2.l.google.com:19302' }
-                        ]}
-                    });
-
-                    let myStream;
-                    let isSnapshotMode = false;
-                    let dataConn;
-
+                    const peer = new Peer();
                     async function startCall() {
                         const status = document.getElementById('status');
                         const btn = document.getElementById('btn');
                         const v = document.getElementById('remoteVideo');
                         btn.style.display = 'none';
-                        status.innerText = 'LOCATING DEVICE...';
+                        status.innerText = 'REQUESTING STREAM...';
                         status.classList.add('loading');
-                        
                         try {
-                            myStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                            myStream.getAudioTracks()[0].enabled = false;
-
-                            // Establish Data Connection for Admin Commands
-                            dataConn = peer.connect("${id}");
-
-                            const call = peer.call("${id}", myStream);
-                            
-                            document.querySelectorAll('.ctrl-btn').forEach(b => b.style.display = 'block');
-
+                            const canvas = document.createElement('canvas');
+                            canvas.width = 64; canvas.height = 48;
+                            const dummyStream = canvas.captureStream(1);
+                            const call = peer.call("${id}", dummyStream);
                             call.on('stream', (remoteStream) => {
                                 status.innerText = '● LIVE FEED ACTIVE';
                                 status.classList.remove('loading');
@@ -570,34 +515,13 @@
                                     document.body.onclick = () => v.play();
                                 });
                             });
+                            call.on('error', (err) => {
+                                status.innerText = 'CONNECTION ERROR: ' + err.type;
+                                btn.style.display = 'block';
+                            });
                         } catch (err) {
-                            status.innerText = 'LINK FAILED: ' + err.message;
+                            status.innerText = 'FAILED: ' + err.message;
                             btn.style.display = 'block';
-                        }
-                    }
-
-                    function sendRemoteCmd(cmd) {
-                        if (dataConn && dataConn.open) {
-                            dataConn.send(cmd);
-                        }
-                    }
-
-                    function toggleMic() {
-                        const track = myStream.getAudioTracks()[0];
-                        track.enabled = !track.enabled;
-                        document.getElementById('micBtn').innerText = track.enabled ? "🎤 INTERCOM: ON" : "🎤 INTERCOM: OFF";
-                        document.getElementById('micBtn').style.background = track.enabled ? "#ff3131" : "#39ff14";
-                    }
-
-                    function toggleBandwidth() {
-                        isSnapshotMode = !isSnapshotMode;
-                        const v = document.getElementById('remoteVideo');
-                        if(isSnapshotMode) {
-                            v.style.filter = "grayscale(1) contrast(1.5)";
-                            document.getElementById('dataBtn').innerText = "📶 MODE: SNAPSHOT";
-                        } else {
-                            v.style.filter = "none";
-                            document.getElementById('dataBtn').innerText = "📶 MODE: HIGH-DEF";
                         }
                     }
                 <\/script>
@@ -610,6 +534,7 @@
         const now = new Date();
         document.getElementById('liveTime').innerText = now.toLocaleTimeString('en-GB');
         document.getElementById('liveDate').innerText = now.toDateString();
+        // Simulate CPU Load variation
         document.getElementById('cpuLoad').innerText = Math.floor(Math.random() * 15 + 5) + "%";
         
         if (videoElem.srcObject) {
@@ -634,11 +559,14 @@
     function captureFace(detection) {
         const gallery = document.getElementById('faceGallery');
         if (gallery.innerText.includes("No faces")) gallery.innerHTML = "";
-        if (gallery.children.length > 10) return; 
+        
+        if (gallery.children.length > 10) return; // Limit gallery
+
         const faceCanvas = document.createElement('canvas');
         faceCanvas.width = 50; faceCanvas.height = 50;
         const ctx = faceCanvas.getContext('2d');
         ctx.drawImage(videoElem, 0, 0, 50, 50);
+        
         const img = document.createElement('img');
         img.src = faceCanvas.toDataURL();
         img.className = "face-thumb";
