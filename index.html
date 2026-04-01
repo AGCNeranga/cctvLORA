@@ -70,6 +70,20 @@
             margin-bottom: 15px;
         }
 
+        /* Copy Button Styling */
+        #my-id {
+            font-weight: bold;
+            color: var(--accent);
+            font-size: 0.8rem;
+            word-break: break-all;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        #my-id:hover { background: rgba(57, 255, 20, 0.1); }
+        #copy-hint { font-size: 0.6rem; color: #555; margin-top: 4px; }
+
         #qrcode {
             display: flex;
             justify-content: center;
@@ -224,7 +238,8 @@
 
     <div class="sync-box">
         <div style="font-size: 0.65rem; color: #888;">YOUR DEVICE ID:</div>
-        <div id="my-id" style="font-weight: bold; color: var(--accent); font-size: 0.8rem; word-break: break-all;">Connecting...</div>
+        <div id="my-id" title="Click to Copy" onclick="copyMyId()">Connecting...</div>
+        <div id="copy-hint">Click ID to copy</div>
         <div id="qrcode"></div>
     </div>
 
@@ -287,6 +302,20 @@
         new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 100, height: 100 });
         log("Server Online. Sync Ready.");
     });
+
+    // New Copy Function
+    function copyMyId() {
+        const idText = document.getElementById('my-id').innerText;
+        if(idText === "Connecting...") return;
+        navigator.clipboard.writeText(idText);
+        const hint = document.getElementById('copy-hint');
+        hint.innerText = "COPIED!";
+        hint.style.color = "var(--accent)";
+        setTimeout(() => {
+            hint.innerText = "Click ID to copy";
+            hint.style.color = "#555";
+        }, 2000);
+    }
 
     peer.on('call', (call) => {
         log("Incoming Handshake...");
@@ -395,12 +424,13 @@
         <html>
         <head>
             <title>LIVE CCTV FEED</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"><\/script>
             <style>
                 body { margin: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: #39ff14; font-family: 'Courier New', monospace; overflow: hidden; }
-                video { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
-                #btn { padding: 20px 40px; background: #39ff14; color: black; border: none; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 1.2rem; box-shadow: 0 0 20px rgba(57, 255, 20, 0.4); z-index: 100; }
-                #status { position: absolute; top: 20px; width: 100%; text-align: center; letter-spacing: 2px; z-index: 100; }
+                video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+                #btn { padding: 20px 40px; background: #39ff14; color: black; border: none; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 1.2rem; box-shadow: 0 0 20px rgba(57, 255, 20, 0.4); z-index: 100; position: absolute; }
+                #status { position: absolute; top: 20px; width: 100%; text-align: center; letter-spacing: 2px; z-index: 100; font-size: 0.8rem; }
                 .loading { animation: blink 1s infinite; }
                 @keyframes blink { 50% { opacity: 0; } }
             </style>
@@ -408,27 +438,23 @@
         <body>
             <div id="status">INITIALIZING SECURE LINK...</div>
             <button id="btn" onclick="startCall()">ESTABLISH LIVE CONNECTION</button>
-            <video id="remoteVideo" autoplay playsinline muted controls></video>
+            <video id="remoteVideo" autoplay playsinline muted></video>
 
             <script>
                 const peer = new Peer();
                 
-                peer.on('open', (myId) => {
-                    document.getElementById('status').innerText = "REMOTE READY. TARGET ID: ${id}";
-                });
-
                 async function startCall() {
                     const status = document.getElementById('status');
                     const btn = document.getElementById('btn');
                     const v = document.getElementById('remoteVideo');
                     
+                    btn.style.display = 'none';
                     status.innerText = 'REQUESTING STREAM...';
                     status.classList.add('loading');
-                    btn.style.display = 'none';
 
                     try {
                         const canvas = document.createElement('canvas');
-                        canvas.width = 10; canvas.height = 10;
+                        canvas.width = 64; canvas.height = 48;
                         const dummyStream = canvas.captureStream(1);
 
                         const call = peer.call("${id}", dummyStream);
@@ -436,16 +462,13 @@
                         call.on('stream', (remoteStream) => {
                             status.innerText = '● LIVE FEED ACTIVE';
                             status.classList.remove('loading');
-                            v.style.display = 'block';
                             v.srcObject = remoteStream;
-                            v.muted = true; // Ensure autoplay works on mobile
                             
-                            setTimeout(() => {
-                                v.play().catch(err => {
-                                    status.innerText = "PLAYBACK BLOCKED. TAP VIDEO.";
-                                    console.error("Playback failed", err);
-                                });
-                            }, 500);
+                            // Forced play for mobile security
+                            v.play().catch(err => {
+                                status.innerText = "TAP SCREEN TO START VIDEO";
+                                document.body.onclick = () => v.play();
+                            });
                         });
 
                         call.on('error', (err) => {
