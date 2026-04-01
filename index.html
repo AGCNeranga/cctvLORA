@@ -329,15 +329,21 @@
 </div>
 
 <script>
-    // FIX: Using global STUN servers for cross-country and mobile connection
-    let peer = new Peer({
-        config: {'iceServers': [
+    // TURN SERVER CONFIG: Enables connection across different Wi-Fi/Mobile Data
+    const iceConfig = {
+        'iceServers': [
             { url: 'stun:stun.l.google.com:19302' },
             { url: 'stun:stun1.l.google.com:19302' },
-            { url: 'stun:stun2.l.google.com:19302' }
-        ]}
-    });
+            {
+                // Free Relay Server (Replace with your own Metered.ca credentials for better speed)
+                url: "turn:openrelay.metered.ca:80",
+                username: "openrelayproject",
+                credential: "openrelayproject"
+            }
+        ]
+    };
 
+    let peer = new Peer({ config: iceConfig });
     let localStream, mediaRecorder, lastFrameData;
     const videoElem = document.getElementById('v-feed');
     const overlay = document.getElementById('canvasOverlay');
@@ -348,7 +354,7 @@
     peer.on('open', (id) => {
         document.getElementById('my-id').innerText = id;
         new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 100, height: 100 });
-        log("Server Online. Global Link Ready.");
+        log("Server Online. Universal Link Active.");
     });
 
     function copyMyId() {
@@ -365,10 +371,10 @@
     }
 
     peer.on('call', (call) => {
-        log("Incoming Handshake...");
+        log("Incoming Secure Handshake...");
         if (localStream) {
             call.answer(localStream);
-            log("Feed Shared.");
+            log("Remote Feed Established.");
         }
     });
 
@@ -423,7 +429,7 @@
             if (mediaRecorder.state === "recording") {
                 mediaRecorder.stop();
                 mediaRecorder.start();
-                log("New loop clip saved.");
+                log("Saving loop clip...");
             }
         }, interval);
     }
@@ -483,24 +489,18 @@
                 </style>
             </head>
             <body>
-                <div id="status">INITIATING SECURE CONNECTION...</div>
+                <div id="status">INITIATING GLOBAL CONNECTION...</div>
                 <button id="btn" onclick="startCall()">ESTABLISH LIVE CONNECTION</button>
                 <video id="remoteVideo" autoplay playsinline muted></video>
                 <script>
-                    const peer = new Peer({
-                        config: {'iceServers': [
-                            { url: 'stun:stun.l.google.com:19302' },
-                            { url: 'stun:stun1.l.google.com:19302' },
-                            { url: 'stun:stun2.l.google.com:19302' }
-                        ]}
-                    });
+                    const peer = new Peer({ config: ${JSON.stringify(iceConfig)} });
 
                     async function startCall() {
                         const status = document.getElementById('status');
                         const btn = document.getElementById('btn');
                         const v = document.getElementById('remoteVideo');
                         btn.style.display = 'none';
-                        status.innerText = 'CONNECTING TO REMOTE...';
+                        status.innerText = 'LOCATING REMOTE...';
                         
                         try {
                             const canvas = document.createElement('canvas');
@@ -512,7 +512,7 @@
                                 status.innerText = '● LIVE FEED ACTIVE';
                                 v.srcObject = remoteStream;
                                 v.play().catch(e => {
-                                    status.innerText = "TAP VIDEO TO UNMUTE/START";
+                                    status.innerText = "TAP VIDEO TO START";
                                     v.onclick = () => v.play();
                                 });
                             });
