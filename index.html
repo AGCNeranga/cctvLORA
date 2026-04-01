@@ -3,476 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CCTV LOKA | 24H VVIP PRO AI MOBILE-SYNC</title>
-    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <title>CCTV LOKA | VVIP REMOTE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
-        :root {
-            --bg: #050505;
-            --sidebar-color: #121212;
-            --accent: #39ff14;
-            --danger: #ff3131;
-            --glass: rgba(255, 255, 255, 0.05);
-        }
-
-        body {
-            background-color: var(--bg);
-            color: #ffffff;
-            font-family: 'Segoe UI', sans-serif;
-            margin: 0;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .dashboard-side {
-            width: 340px;
-            background: var(--sidebar-color);
-            border-right: 1px solid #333;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            overflow-y: auto;
-            transition: 0.3s;
-        }
-
-        .logo {
-            font-size: 1.2rem;
-            font-weight: 900;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--accent);
-            padding-bottom: 10px;
-        }
-
-        .tool-label {
-            font-size: 0.65rem;
-            color: #888;
-            text-transform: uppercase;
-            margin: 10px 0;
-            display: block;
-        }
-
-        /* Mobile Sync UI */
-        .mobile-link-box {
-            background: #111;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            border: 1px dashed var(--accent);
-            margin-bottom: 15px;
-        }
-        #qrcode {
-            display: flex;
-            justify-content: center;
-            margin-top: 10px;
-            background: white;
-            padding: 5px;
-            border-radius: 4px;
-        }
-        .peer-input {
-            width: 100%;
-            padding: 8px;
-            background: #222;
-            border: 1px solid #444;
-            color: var(--accent);
-            border-radius: 4px;
-            margin-top: 5px;
-            box-sizing: border-box;
-            font-size: 0.7rem;
-        }
-
-        .control-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        button, .toggle-btn {
-            background: var(--glass);
-            border: 1px solid #444;
-            color: white;
-            padding: 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            text-align: left;
-            transition: 0.3s;
-            font-size: 0.85rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
+        :root { --bg: #050505; --accent: #39ff14; --sidebar: #121212; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; }
+        .sidebar { width: 340px; background: var(--sidebar); padding: 20px; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .logo { font-size: 1.2rem; font-weight: 900; color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; }
+        .sync-box { background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px dashed var(--accent); margin-bottom: 20px; text-align: center; }
+        #qrcode { display: flex; justify-content: center; margin: 10px 0; background: white; padding: 5px; border-radius: 4px; }
+        input { width: 100%; padding: 10px; background: #000; border: 1px solid #444; color: var(--accent); border-radius: 5px; margin-bottom: 10px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid #444; color: white; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 10px; }
         button:hover { background: var(--accent); color: black; }
-
-        #aiLog {
-            background: #000;
-            border: 1px solid #333;
-            height: 100px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 0.7rem;
-            padding: 5px;
-            color: #aaa;
-        }
-
-        .range-container {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            padding: 10px;
-            background: var(--glass);
-            border-radius: 6px;
-        }
-
-        input[type="range"] { accent-color: var(--accent); }
-
-        #clipGallery {
-            margin-top: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        .clip-item {
-            background: #1a1a1a;
-            padding: 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-left: 3px solid var(--accent);
-        }
-        .download-link { color: var(--accent); text-decoration: none; font-weight: bold; }
-
-        .monitor-view {
-            flex: 1;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .cam-container {
-            flex: 1;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 2px solid #222;
-            position: relative;
-        }
-
-        video { width: 100%; height: 100%; object-fit: cover; }
-        #canvasOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-
-        .hud-top {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 5;
-        }
-
-        .digital-clock {
-            font-family: 'Courier New', monospace;
-            font-size: 1.8rem;
-            color: var(--accent);
-        }
-
-        .sys-footer {
-            margin-top: 20px;
-            background: rgba(0,0,0,0.5);
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-        }
-
-        .status-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-        .val { color: var(--accent); }
-        #motionAlert { color: var(--danger); font-weight: bold; visibility: hidden; }
-
-        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 20px; }
-        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--accent); }
-        input:checked + .slider:before { transform: translateX(20px); }
-
-        @media (max-width: 768px) {
-            body { flex-direction: column; overflow-y: auto; height: auto; }
-            .dashboard-side { width: 100%; border-right: none; border-bottom: 1px solid #333; }
-            .cam-container { height: 300px; }
-        }
+        .monitor-view { flex: 1; padding: 20px; display: flex; justify-content: center; align-items: center; background: #000; }
+        video { width: 100%; height: 100%; object-fit: contain; border-radius: 10px; box-shadow: 0 0 20px rgba(57, 255, 20, 0.2); }
+        #log { font-size: 0.7rem; color: #888; margin-top: 10px; height: 80px; overflow-y: auto; background: #000; padding: 5px; border: 1px solid #333; }
     </style>
 </head>
 <body>
 
-<div class="dashboard-side">
-    <div class="logo">CCTV LOKA VVIP AI</div>
-
-    <span class="tool-label">Mobile Sync (Live Feed)</span>
-    <div class="mobile-link-box">
-        <div style="font-size: 0.6rem; color: #888;">YOUR PC ID:</div>
-        <div id="my-peer-id" style="color: var(--accent); font-weight: bold; font-size: 0.7rem; word-break: break-all;">Connecting...</div>
-        <div id="qrcode"></div>
-        <input type="text" id="remote-id" class="peer-input" placeholder="Paste PC ID here on Phone">
-        <button onclick="connectToPC()" style="margin-top: 8px; font-size: 0.7rem; width: 100%; justify-content: center;">🔗 VIEW LIVE FEED</button>
-    </div>
+<div class="sidebar" id="sidebar">
+    <div class="logo">CCTV LOKA VVIP</div>
     
-    <span class="tool-label">System Control</span>
-    <div class="control-panel">
-        <button onclick="startSystem()">▶ START 24H MONITOR</button>
-        <button onclick="stopSystem()">■ STOP (ESC)</button>
+    <div class="sync-box">
+        <div style="font-size: 0.7rem; color: #888;">YOUR DEVICE ID:</div>
+        <div id="my-id" style="font-weight: bold; color: var(--accent); font-size: 0.8rem; word-break: break-all;">Connecting...</div>
+        <div id="qrcode"></div>
     </div>
 
-    <span class="tool-label">Sensitivity Control</span>
-    <div class="range-container">
-        <div style="font-size: 0.7rem; display: flex; justify-content: space-between;">
-            <span>Low</span>
-            <span id="senseVal">50</span>
-            <span>High</span>
-        </div>
-        <input type="range" id="sensitivity" min="1" max="100" value="50" oninput="updateSensitivity(this.value)">
-    </div>
+    <input type="text" id="remote-id" placeholder="Paste PC ID here">
+    <button onclick="openLiveTab()" style="background: var(--accent); color: black;">🔗 OPEN CCTV IN NEW TAB</button>
+    
+    <hr style="width:100%; border: 0.5px solid #333; margin: 10px 0;">
+    
+    <button onclick="startPC()">▶ START 24H MONITOR (PC)</button>
+    <button onclick="location.reload()">🔄 RESET SYSTEM</button>
 
-    <span class="tool-label">Audio Settings</span>
-    <div class="toggle-btn">
-        <span>Motion Alarm</span>
-        <label class="switch">
-            <input type="checkbox" id="soundToggle">
-            <span class="slider"></span>
-        </label>
-    </div>
-
-    <span class="tool-label">AI Analytics Log</span>
-    <div id="aiLog">[SYSTEM READY]</div>
-
-    <span class="tool-label">Saved Clips (Download)</span>
-    <div id="clipGallery">
-        <div style="color:#555; font-size:0.7rem; text-align:center;">No clips yet</div>
-    </div>
-
-    <span class="tool-label">Manual Tools</span>
-    <div class="control-panel">
-        <button onclick="takeSnapshot()">📸 SNAPSHOT</button>
-        <button onclick="toggleNight()">🌙 NIGHT VISION</button>
-    </div>
-
-    <div class="sys-footer">
-        <div class="status-row"><span>Motion:</span> <span id="motionAlert">DETECTED</span></div>
-        <div class="status-row"><span>AI Detection:</span> <span class="val" id="aiStatus">OFF</span></div>
-        <div class="status-row"><span>Power:</span> <span class="val" id="battStat">...</span></div>
-        <div class="status-row"><span>Status:</span> <span class="val" id="sysStatus">READY</span></div>
-    </div>
+    <div id="log">System Ready...</div>
 </div>
 
-<div class="monitor-view">
-    <div class="cam-container">
-        <div class="hud-top">
-            <div id="liveTime" class="digital-clock">00:00:00</div>
-            <div id="liveDate" style="opacity: 0.7;">DATE LOADING...</div>
-            <div id="recLabel" style="display:none; color:var(--danger); font-weight:bold;">● 24H RECORDING ACTIVE</div>
-        </div>
-        <video id="v-feed" autoplay playsinline muted></video>
-        <canvas id="canvasOverlay"></canvas>
-        <canvas id="motionCanvas" style="display:none;"></canvas>
-    </div>
+<div class="monitor-view" id="main-view">
+    <video id="v-feed" autoplay playsinline muted></video>
 </div>
 
 <script>
-    let mediaRecorder;
-    let videoElem = document.getElementById('v-feed');
-    let motionCanvas = document.getElementById('motionCanvas');
-    let motionCtx = motionCanvas.getContext('2d', { willReadFrequently: true });
-    let overlay = document.getElementById('canvasOverlay');
-    let overlayCtx = overlay.getContext('2d');
-    let lastFrameData = null;
-    let sensitivity = 180000;
-    let peer;
+    let peer = new Peer();
     let localStream;
-
-    // --- PeerJS Setup for Mobile Sync ---
-    // Using default PeerJS Cloud Server
-    peer = new Peer({
-        debug: 3
-    }); 
+    const videoElem = document.getElementById('v-feed');
 
     peer.on('open', (id) => {
-        document.getElementById('my-peer-id').innerText = id;
-        generateQR(id);
-        logAI("Connected to Sync Server. ID: " + id);
+        document.getElementById('my-id').innerText = id;
+        new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 100, height: 100 });
+        log("Server Online. ID Generated.");
     });
 
+    // When PC receives a call from Mobile
     peer.on('call', (call) => {
-        logAI("Mobile connecting...");
-        // Answer the call with the local camera stream
-        if(localStream) {
+        log("Incoming connection from Mobile...");
+        if (localStream) {
             call.answer(localStream);
-            logAI("Streaming to mobile started.");
         } else {
-            logAI("Error: Start PC camera first!");
+            log("Error: Start PC camera first!");
         }
     });
 
-    peer.on('error', (err) => {
-        logAI("Sync Error: " + err.type);
-        console.error(err);
-    });
-
-    function connectToPC() {
-        const remoteId = document.getElementById('remote-id').value.trim();
-        if (!remoteId) return alert("Please enter the ID shown on your PC screen!");
-        
-        logAI("Attempting to link with: " + remoteId);
-        
-        // Mobile calls PC. We don't need to send mobile stream, just receive.
-        const call = peer.call(remoteId, new MediaStream()); 
-        
-        call.on('stream', (remoteStream) => {
-            videoElem.srcObject = remoteStream;
-            logAI("LIVE FEED CONNECTED!");
-            document.getElementById('sysStatus').innerText = "REMOTE VIEWING";
-        });
-
-        call.on('error', (err) => {
-            logAI("Connection failed: " + err);
-        });
-    }
-
-    function generateQR(id) {
-        const qrDiv = document.getElementById("qrcode");
-        qrDiv.innerHTML = ""; // Clear
-        new QRCode(qrDiv, {
-            text: window.location.href,
-            width: 100,
-            height: 100
-        });
-    }
-
-    // --- AI & System Functions ---
-    async function loadAI() {
-        try {
-            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
-            await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-            await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-            logAI("AI Analytics Ready.");
-        } catch (e) { logAI("AI Error: " + e.message); }
-    }
-    loadAI();
-
-    function logAI(msg) {
-        const log = document.getElementById('aiLog');
-        log.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}<br>` + log.innerHTML;
-    }
-
-    function updateSensitivity(val) {
-        document.getElementById('senseVal').innerText = val;
-        sensitivity = (101 - val) * 3600;
-    }
-
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    function playAlertSound() {
-        if (!document.getElementById('soundToggle').checked) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.type = 'sine'; osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-    }
-
-    setInterval(async () => {
-        const now = new Date();
-        document.getElementById('liveTime').innerText = now.toLocaleTimeString('en-GB');
-        document.getElementById('liveDate').innerText = now.toDateString();
-        if (videoElem.srcObject) {
-            checkMotion();
-            runAIDetection();
-        }
-    }, 1000);
-
-    async function runAIDetection() {
-        overlay.width = videoElem.videoWidth; overlay.height = videoElem.videoHeight;
-        const detections = await faceapi.detectAllFaces(videoElem, new faceapi.TinyFaceDetectorOptions());
-        if (detections.length > 0) {
-            document.getElementById('aiStatus').innerText = `${detections.length} FACE(S)`;
-            overlayCtx.clearRect(0,0, overlay.width, overlay.height);
-            faceapi.draw.drawDetections(overlay, faceapi.resizeResults(detections, overlay));
-        } else {
-            document.getElementById('aiStatus').innerText = "SCANNING...";
-            overlayCtx.clearRect(0,0, overlay.width, overlay.height);
-        }
-    }
-
-    function checkMotion() {
-        motionCanvas.width = 64; motionCanvas.height = 48;
-        motionCtx.drawImage(videoElem, 0, 0, 64, 48);
-        const currentFrame = motionCtx.getImageData(0, 0, 64, 48).data;
-        if (lastFrameData) {
-            let diff = 0;
-            for (let i = 0; i < currentFrame.length; i += 4) { diff += Math.abs(currentFrame[i] - lastFrameData[i]); }
-            if (diff > sensitivity) {
-                document.getElementById('motionAlert').style.visibility = "visible";
-                playAlertSound();
-                setTimeout(() => document.getElementById('motionAlert').style.visibility = "hidden", 2000);
-            }
-        }
-        lastFrameData = currentFrame;
-    }
-
-    async function startSystem() {
+    async function startPC() {
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             videoElem.srcObject = localStream;
-            document.getElementById('recLabel').style.display = "block";
-            document.getElementById('sysStatus').innerText = "MONITORING";
-            initRecorder(localStream);
-            logAI("Camera Started.");
-        } catch (e) { alert("Enable Camera Access!"); }
+            log("PC Camera Active. Ready to sync.");
+        } catch (e) {
+            alert("Please use HTTPS or allow camera access!");
+        }
     }
 
-    function initRecorder(stream) {
-        mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
-        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) addToGallery(e.data); };
-        mediaRecorder.start(300000); 
+    function log(msg) {
+        const l = document.getElementById('log');
+        l.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}<br>` + l.innerHTML;
     }
 
-    function addToGallery(blob) {
-        const url = URL.createObjectURL(blob);
-        const gallery = document.getElementById('clipGallery');
-        if (gallery.innerText.includes("No clips")) gallery.innerHTML = "";
-        const item = document.createElement('div');
-        item.className = "clip-item";
-        item.innerHTML = `<span>${new Date().toLocaleTimeString()}</span><a href="${url}" download="CCTV.webm" class="download-link">SAVE</a>`;
-        gallery.insertBefore(item, gallery.firstChild);
+    // Function to handle opening in new tab
+    function openLiveTab() {
+        const id = document.getElementById('remote-id').value.trim();
+        if(!id) return alert("Please enter the PC ID first!");
+
+        // Open a new blank window
+        const newTab = window.open("", "_blank");
+        newTab.document.write(`
+            <html>
+            <head>
+                <title>LIVE CCTV FEED</title>
+                <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"><\/script>
+                <style>
+                    body { margin: 0; background: black; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+                    video { width: 100%; height: 100%; object-fit: contain; }
+                    #status { position: absolute; top: 10px; left: 10px; color: #39ff14; font-family: sans-serif; font-size: 12px; background: rgba(0,0,0,0.5); padding: 5px; }
+                </style>
+            </head>
+            <body>
+                <div id="status">Connecting to PC...</div>
+                <video id="remoteVideo" autoplay playsinline></video>
+                <script>
+                    const peer = new Peer();
+                    peer.on('open', () => {
+                        const call = peer.call("${id}", new MediaStream());
+                        call.on('stream', (stream) => {
+                            document.getElementById('remoteVideo').srcObject = stream;
+                            document.getElementById('status').innerText = "LIVE FEED ACTIVE";
+                        });
+                        call.on('error', (err) => {
+                            document.getElementById('status').innerText = "Error: " + err;
+                        });
+                    });
+                <\/script>
+            </body>
+            </html>
+        `);
     }
-
-    function takeSnapshot() {
-        const snap = document.createElement('canvas');
-        snap.width = videoElem.videoWidth; snap.height = videoElem.videoHeight;
-        snap.getContext('2d').drawImage(videoElem, 0, 0);
-        const a = document.createElement('a');
-        a.download = `SNAP_${Date.now()}.jpg`; a.href = snap.toDataURL('image/jpeg'); a.click();
-    }
-
-    function stopSystem() {
-        if (mediaRecorder) mediaRecorder.stop();
-        if (videoElem.srcObject) videoElem.srcObject.getTracks().forEach(t => t.stop());
-        document.getElementById('sysStatus').innerText = "STOPPED";
-        document.getElementById('recLabel').style.display = "none";
-    }
-
-    function toggleNight() {
-        videoElem.style.filter = videoElem.style.filter ? '' : 'brightness(1.5) contrast(1.2) sepia(0.4) grayscale(0.4) hue-rotate(90deg)';
-    }
-
-    window.addEventListener('keydown', (e) => { if (e.key === "Escape") stopSystem(); });
-
-    if (navigator.getBattery) navigator.getBattery().then(b => {
-        const u = () => document.getElementById('battStat').innerText = Math.round(b.level * 100) + "%";
-        u(); b.onlevelchange = u;
-    });
 </script>
 </body>
 </html>
