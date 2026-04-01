@@ -329,21 +329,22 @@
 </div>
 
 <script>
-    // TURN SERVER CONFIG: Enables connection across different Wi-Fi/Mobile Data
-    const iceConfig = {
+    // UPDATED CONFIG: Added TURN Relay to fix black screen on different internet connections
+    const globalConfig = {
         'iceServers': [
-            { url: 'stun:stun.l.google.com:19302' },
-            { url: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
             {
-                // Free Relay Server (Replace with your own Metered.ca credentials for better speed)
-                url: "turn:openrelay.metered.ca:80",
+                // Relay server to bypass firewalls on mobile data/different Wi-Fi
+                urls: "turn:openrelay.metered.ca:80",
                 username: "openrelayproject",
                 credential: "openrelayproject"
             }
         ]
     };
 
-    let peer = new Peer({ config: iceConfig });
+    let peer = new Peer({ config: globalConfig });
     let localStream, mediaRecorder, lastFrameData;
     const videoElem = document.getElementById('v-feed');
     const overlay = document.getElementById('canvasOverlay');
@@ -354,7 +355,7 @@
     peer.on('open', (id) => {
         document.getElementById('my-id').innerText = id;
         new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 100, height: 100 });
-        log("Server Online. Universal Link Active.");
+        log("Server Online. Universal Sync Ready.");
     });
 
     function copyMyId() {
@@ -374,7 +375,9 @@
         log("Incoming Secure Handshake...");
         if (localStream) {
             call.answer(localStream);
-            log("Remote Feed Established.");
+            log("Feed Shared successfully.");
+        } else {
+            log("Call rejected. Please START camera first.");
         }
     });
 
@@ -383,7 +386,7 @@
             const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
             await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
             log("AI Facial Models Loaded.");
-        } catch (e) { log("AI Models Load Error."); }
+        } catch (e) { log("AI Models failed to load."); }
     }
     loadAI();
 
@@ -394,9 +397,9 @@
             document.getElementById('sysStatus').innerText = "LIVE";
             document.getElementById('recLabel').style.display = "block";
             initRecorder(localStream);
-            log("Camera Active.");
+            log("Local Monitor Active.");
         } catch (e) {
-            alert("Error: Camera access required.");
+            alert("Error: Camera access is blocked.");
         }
     }
 
@@ -429,7 +432,7 @@
             if (mediaRecorder.state === "recording") {
                 mediaRecorder.stop();
                 mediaRecorder.start();
-                log("Saving loop clip...");
+                log("New loop sequence started.");
             }
         }, interval);
     }
@@ -457,8 +460,12 @@
     }
 
     function stopSystem() {
-        if (mediaRecorder && mediaRecorder.state !== "inactive") { mediaRecorder.stop(); }
-        if (localStream) { localStream.getTracks().forEach(t => t.stop()); }
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+            mediaRecorder.stop(); 
+        }
+        if (localStream) {
+            localStream.getTracks().forEach(t => t.stop());
+        }
         document.getElementById('sysStatus').innerText = "STOPPED";
         document.getElementById('recLabel').style.display = "none";
         log("System Halted.");
@@ -484,40 +491,43 @@
                 <style>
                     body { margin: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: #39ff14; font-family: 'Courier New', monospace; overflow: hidden; }
                     video { width: 100%; height: 100%; object-fit: contain; background: #000; }
-                    #btn { padding: 20px 40px; background: #39ff14; color: black; border: none; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 1.2rem; z-index: 100; position: absolute; }
+                    #btn { padding: 20px 40px; background: #39ff14; color: black; border: none; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 1.2rem; box-shadow: 0 0 20px rgba(57, 255, 20, 0.4); z-index: 100; position: absolute; }
                     #status { position: absolute; top: 20px; width: 100%; text-align: center; letter-spacing: 2px; z-index: 100; font-size: 0.8rem; }
+                    .loading { animation: blink 1s infinite; }
+                    @keyframes blink { 50% { opacity: 0; } }
                 </style>
             </head>
             <body>
-                <div id="status">INITIATING GLOBAL CONNECTION...</div>
+                <div id="status">CONNECTING TO GLOBAL SERVER...</div>
                 <button id="btn" onclick="startCall()">ESTABLISH LIVE CONNECTION</button>
                 <video id="remoteVideo" autoplay playsinline muted></video>
                 <script>
-                    const peer = new Peer({ config: ${JSON.stringify(iceConfig)} });
+                    const peer = new Peer({ config: ${JSON.stringify(globalConfig)} });
 
                     async function startCall() {
                         const status = document.getElementById('status');
                         const btn = document.getElementById('btn');
                         const v = document.getElementById('remoteVideo');
                         btn.style.display = 'none';
-                        status.innerText = 'LOCATING REMOTE...';
-                        
+                        status.innerText = 'LOCATING DEVICE...';
+                        status.classList.add('loading');
                         try {
                             const canvas = document.createElement('canvas');
                             canvas.width = 64; canvas.height = 48;
                             const dummyStream = canvas.captureStream(1);
                             const call = peer.call("${id}", dummyStream);
-                            
                             call.on('stream', (remoteStream) => {
                                 status.innerText = '● LIVE FEED ACTIVE';
+                                status.classList.remove('loading');
                                 v.srcObject = remoteStream;
-                                v.play().catch(e => {
-                                    status.innerText = "TAP VIDEO TO START";
-                                    v.onclick = () => v.play();
+                                // FORCE PLAY: Fixes black screen on some mobile browsers
+                                v.play().catch(err => {
+                                    status.innerText = "TAP SCREEN TO START VIDEO";
+                                    document.body.onclick = () => v.play();
                                 });
                             });
                         } catch (err) {
-                            status.innerText = 'ERROR: ' + err.message;
+                            status.innerText = 'LINK FAILED: ' + err.message;
                             btn.style.display = 'block';
                         }
                     }
@@ -532,7 +542,11 @@
         document.getElementById('liveTime').innerText = now.toLocaleTimeString('en-GB');
         document.getElementById('liveDate').innerText = now.toDateString();
         document.getElementById('cpuLoad').innerText = Math.floor(Math.random() * 15 + 5) + "%";
-        if (videoElem.srcObject) { checkMotion(); runAI(); }
+        
+        if (videoElem.srcObject) {
+            checkMotion();
+            runAI();
+        }
     }, 1000);
 
     async function runAI() {
@@ -540,6 +554,7 @@
         overlay.height = videoElem.videoHeight;
         const detections = await faceapi.detectAllFaces(videoElem, new faceapi.TinyFaceDetectorOptions());
         overlayCtx.clearRect(0,0, overlay.width, overlay.height);
+        
         if (detections.length > 0) {
             document.getElementById('aiStatus').innerText = detections.length + " FACE(S)";
             faceapi.draw.drawDetections(overlay, faceapi.resizeResults(detections, overlay));
